@@ -259,3 +259,98 @@ add readme
 ## 总结：
     通过源码进行分析服务注册方式执行流程，这样在以后进行配置eureka.instance.hostname、eureka.instance.prefer.ip-address、
     eureka.instance.ip-address三个配置信息时就可以根据优先级顺序达到预期的效果，避免没有必要的错误出现。
+
+
+------------------------------------------------------------------------------------------------------------------------
+# Eureka服务注册中心安全配置：
+    添加依赖：
+        <!--添加安全认证-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+    因为我们是用的是Spring Security作为安全组件，所以在这里需要添加spring-boot-starter-security依赖来完成安全相关组件的
+    自动化配置以及实例化。
+
+## 开启注册中心安全配置
+### 配置文件的安全配置
+    # 服务名称
+    spring:
+      application:
+        name: hengboy-spring-cloud-eureka-security
+      # 安全参数配置
+      security:
+        user:
+          name: root
+          password: admin
+          roles: SERVICE_NODE
+    # eureka配置
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://localhost:${server.port}/eureka/
+        fetch-registry: false
+        register-with-eureka: false
+
+    # 端口号
+    server:
+      port: 8086
+    安全相关的内容我们通过spring.security.user开头的参数进行配置，对应自动绑定spring-boot-starter-security依赖内的
+    org.springframework.boot.autoconfigure.security.SecurityProperties属性实体类。
+    在SecurityProperties的内部类SecurityProperties.User内我们可以看到已经给我们生成了一个默认的name以及password
+    spring.security.user.name
+    用户名，默认值为user，配置Spring Security内置使用内存方式存储的用户名。
+    spring.security.user.password
+    用户对应的密码，默认值为UUID随机字符串，配置Spring Security默认对应user用户的密码，该密码在系统启动时会在控制台打印，
+    如果使用默认值可以运行查看控制台的输出内容。
+
+### 开启Http Basic 安全认证
+    旧版本的Spring Security的依赖是可以在配置文件内容直接通security.basic.enabled参数进行开启basic认证，不过目前版本已经
+    被废除，既然这种方式不可行，那我们就使用另外一种方式进行配置，通过继承WebSecurityConfigurerAdapter安全配置类来完成开
+    启认证权限，配置类如下所示：
+        @Configuration
+        public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+            /**
+             * 配置安全信息
+             * - 禁用csrf攻击功能
+             * - 开启所有请求需要验证并且使用http basic进行认证
+             *
+             * @param http
+             * @throws Exception
+             */
+            @Override
+            protected void configure(HttpSecurity http) throws Exception {
+
+                http.csrf()
+                        .disable()
+                        .authorizeRequests()
+                        .anyRequest().authenticated()
+                        .and()
+                        .httpBasic();
+            }
+        }
+    如果你了解Spring Security那肯定对我们自定义的安全配置类SecurityConfiguration的内容不陌生，在
+    SecurityConfiguration#configure方法内，我们禁用了csrf功能并且开启所有请求都需要通过basic方式进行验证。
+
+## 注册服务时的安全配置
+    // 修改前
+    # 配置Eureka Server 信息
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://localhost:8086/eureka/
+
+    // 修改后
+    # 配置Eureka Server 信息
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://root:admin@localhost:8086/eureka/
+    修改后的api:node@这块的内容，前面是spring.security.user.name配置的值，而后面则是spring.security.user.password配置的
+    值，@符号后面才是原本之前的Eureka Server的连接字符串信息。
+
+    ## 这样配置之后，登陆注册列表可以使用root/admin，但是登陆服务需要使用默认的用户名：user，密码：控制台输出的uuid
+
+## 总结
+    本章为Eureka Server穿上了安全的外套，让它可以更安全，在文章开始的时候我说到了如果使用内网IP或者主机名方式进行服务注
+    册时是几乎不存在安全问题的，如果你想你的服务注册中心更新安全，大可不必考虑你的服务注册方式都可以添加安全认证。

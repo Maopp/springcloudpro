@@ -7,11 +7,16 @@ server:
   port: 8087
 
 #Eureka 相关配置
+#eureka:
+#  client:
+#    service-url:
+#      # Eureka Server 服务注册中心地址
+#      defaultZone: http://localhost:8086/eureka/
 eureka:
   client:
     service-url:
       # Eureka Server 服务注册中心地址
-      defaultZone: http://localhost:8086/eureka/
+      defaultZone: http://root:admin@localhost:8086/eureka/
   # 自定义实例编号
   instance:
     # `@project.version@源码的版本号我们是采用了获取pom.xml配置文件内设置的version来设置的值，

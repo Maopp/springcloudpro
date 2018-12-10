@@ -2,6 +2,12 @@
 spring:
   application:
     name: catpp-spring-cloud-eureka
+  # 安全参数配置
+  security:
+    user:
+      name: root
+      password: admin
+      roles: SERVICE_NODE
 # 服务端口号
 server:
   port: 8086
