@@ -72,3 +72,32 @@ add readme
         instance-id: ${spring.application.name}:${server.port}:@project.version@
 `@project.version@源码的版本号我们是采用了获取pom.xml配置文件内设置的version来设置的值，通过@xxx@的方式就可以得到maven的
 一些相关配置信息来直接使用
+
+
+------------------------------------------------------------------------------------------------------------------------
+# Eureka服务注册方式：
+默认采用IP Address方式注册
+    点击服务注册列表中的服务名称，页面跳转到：http://10.200.78.75:8087/actuator/info
+## 如何使用主机方式注册？
+    # 配置Eureka Server 信息
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://localhost:10000/eureka/
+      # 自定义实例编号
+      instance:
+        instance-id: ${spring.application.name}:${server.port}:@project.version@
+        # 配置使用主机名注册服务
+        hostname: node1
+
+    点击服务注册列表中的服务名称，页面跳转到：http://node1:8087/actuator/info
+
+## 配置优先使用IP
+    instance:
+        ...
+        prefer-ip-address: true
+
+## 配置使用指定IP注册
+    instance:
+        ...
+        ip-address: 127.0.0.1

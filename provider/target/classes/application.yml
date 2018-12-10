@@ -17,3 +17,9 @@ eureka:
     # `0.0.1-SNAPSHOT源码的版本号我们是采用了获取pom.xml配置文件内设置的version来设置的值，
     # 通过@xxx@的方式就可以得到maven的一些相关配置信息来直接使用
     instance-id: ${spring.application.name}:${server.port}:0.0.1-SNAPSHOT
+    # 配置使用主机方式注册服务
+    hostname: node1
+    # 配置优先使用IP注册
+    prefer-ip-address: true
+    # 配置使用指定ip
+    ip-address: 127.0.0.1
