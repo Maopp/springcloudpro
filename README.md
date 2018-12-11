@@ -354,3 +354,33 @@ add readme
 ## 总结
     本章为Eureka Server穿上了安全的外套，让它可以更安全，在文章开始的时候我说到了如果使用内网IP或者主机名方式进行服务注
     册时是几乎不存在安全问题的，如果你想你的服务注册中心更新安全，大可不必考虑你的服务注册方式都可以添加安全认证。
+
+
+------------------------------------------------------------------------------------------------------------------------
+# Eureka的服务发现与消费：
+只需要创建一个服务节点项目即可，因为服务提供者也是消费者，然后将项目注册到服务注册中心
+添加：spring-boot-starter-web、spring-cloud-starter-netflix-ribbon、spring-cloud-starter-netflix-eureka-client三个依赖
+## 配置客户端：
+    入口类，添加@EnableDiscoveryClient注解
+
+## 通过服务名(spring.application.name)来获取服务实例列表：
+    添加依赖spring-cloud-starter-netflix-ribbon就可以直接使用RestTemplate类进行发送http请求，而且RestTemnplate可以直接使
+    用服务名进行发送请求！！！
+
+### 实例化RestTemplate：
+    spring-cloud-starter-netflix-ribbon依赖并没有为我们实例化RestTemplate，我们需要手动进行实例化，我采用@Bean方式进行实
+    例化，在人口类实例化：
+        @Bean
+        @LoadBalanced
+        public RestTemplate restTemplate() {
+            return new RestTemplate();
+        }
+    使用@LoadBalanced注解，才能通过服务名直接发送请求
+
+### 请求转发流程：
+    执行流程：我们在访问/consumer/index请求地址时，会通过RestTemplate转发请求访问
+    http://hengboy-spring-cloud-eureka-consumer/consumer/logic地址并返回信息this is home page。
+
+## 总结：
+    通过Ribbon简单的实现了服务节点的消费，通过RestTemplate发送请求来获取响应内容，需要注意的是我们并不是通过IP:Port的形
+    式，而是通过服务名的形式发送请求，这都归功于@LoadBalanced这个注解

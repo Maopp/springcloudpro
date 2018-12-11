@@ -65,7 +65,7 @@
 		</dependency>
 
 		<!--Eureka Client 依赖-->
-		<dependency>dd
+		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
 		</dependency>
