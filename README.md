@@ -384,3 +384,81 @@ add readme
 ## 总结：
     通过Ribbon简单的实现了服务节点的消费，通过RestTemplate发送请求来获取响应内容，需要注意的是我们并不是通过IP:Port的形
     式，而是通过服务名的形式发送请求，这都归功于@LoadBalanced这个注解
+
+
+------------------------------------------------------------------------------------------------------------------------
+# Eureka高可用集群部署：
+
+## 服务配置
+测试环境都在我们本机，有两种方式可以模拟测试同时运行：
+    创建两个不同的项目
+    使用一个项目进行根据spring.profiles.active设置运行不同环境
+本章采用第二种方式
+
+## Profile多环境配置
+创建application-node1.yml、application-node2.yml配置文件：
+
+    # Eureka 客户端配置
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://node2:10002/eureka/
+      instance:
+        # 配置通过主机名方式注册
+        hostname: node1
+        # 配置实例编号
+        instance-id: ${eureka.instance.hostname}:${server.port}:@project.version@
+      # 集群节点之间读取超时时间。单位：毫秒
+      server:
+        peer-node-read-timeout-ms: 1000
+    # 服务端口号
+    server:
+      port: 10001
+    -------------------
+    # Eureka 客户端配置
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://node1:10001/eureka/
+      instance:
+        # 配置通过主机名方式注册
+        hostname: node2
+        # 配置实例编号
+        instance-id: ${eureka.instance.hostname}:${server.port}:@project.version@
+      # 集群节点之间读取超时时间。单位：毫秒
+      server:
+        peer-node-read-timeout-ms: 1000
+    server:
+      port: 10002
+
+## 主机名设置
+Mac或者Linux配置方式
+如果你使用的是osx系统。可以找到/etc/hosts文件并添加如下内容：
+127.0.0.1       node1
+127.0.0.1       node2
+一般情况下配置完成后就会生效，如果没有生效，可以尝试重启。
+Windows配置方式
+如果你使用的是windows系统，可以修改C:\Windows\System32\drivers\etc\hosts文件，添加内容与Mac方式一致。
+
+## Eureka Server相互注册
+application-node1.yml
+eureka.client.service-url.defaultZone这个配置参数的值，配置的是http://node2:10002/eureka/，那这里的node2是什么呢？其实一看应该可以明白，这是们在hosts文件内配置的hostname，而端口号我们配置的则是10002，根据hostname以及port我们可以看出，环境node1注册到了node2上。
+
+application-node2.yml
+在node2环境内配置eureka.client.service-url.defaultZone是指向的http://node1:10001/eureka/，同样node2注册到了node1上。
+
+通过这种相互注册的方式牢靠的把两个服务注册中心绑定在了一块。
+
+## 运行测试
+1、clean && package 本项目（idea工具自带maven常用操作命令快捷方式，右侧导航栏Maven Projects -> Lifecycle）
+2、打开终端cd项目target目录
+3、通过如下命令启动node1环境：
+    java -jar hengboy-spring-cloud-eureka-high-0.0.1-SNAPSHOT.jar --spring.profiles.active=node1
+4、再打开一个终端，同样是cd项目的target目录下，通过如下命令启动node2环境：
+    java -jar hengboy-spring-cloud-eureka-high-0.0.1-SNAPSHOT.jar --spring.profiles.active=node2
+5、访问http://node1:10001查看node1环境的Eureka管理中心
+6、访问http://node2:10002查看node2环境的Eureka管理中心
+
+## 总结
+集群环境让Eureka Server更健壮
+在实战环境中建议把Eureka Server节点放在不同的服务器下，并且通过主机名或者内网方式进行相互注册。
