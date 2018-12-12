@@ -462,3 +462,44 @@ application-node2.yml
 ## 总结
 集群环境让Eureka Server更健壮
 在实战环境中建议把Eureka Server节点放在不同的服务器下，并且通过主机名或者内网方式进行相互注册。
+
+
+------------------------------------------------------------------------------------------------------------------------
+# 将服务提供者注册到Eureka集群：
+
+## 启用Eureka Client
+    @EnableDiscoveryClient
+
+## 配置Eureka Client
+    # 服务名称
+    spring:
+      application:
+        name: catpp-spring-cloud-eureka-provider
+
+    # 端口号
+    server:
+      port: 8087
+
+    # Eureka集群配置信息
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://node1:10001/eureka/,http://node2:10002/eureka/
+
+## 主动将服务注册到Eureka集群
+ureka.clinet.service-url.defaultZone参数，通过“，”隔开配置了两个Eureka Server地址，这两个地址则是Eureka Server集群地址
+
+## 运行测试
+1、启动node1环境服务注册中心
+2、启动node2环境服务注册中心
+3、启动本章项目
+4、访问node1管理界面http://node1:10001查看服务列表
+5、访问node2管理界面http://node2:10002查看服务列表
+
+## 自动同步到Eureka集群
+因为有eureka.client.fetch-registry这个参数，而且还是默认为true，这个参数配置了是否自动同步服务列表，也就是默认就会进行
+同步的操作。你就算将Eureka Client注册到http://node1:10001/eureka/注册中心，也会自动同步到http://node2:10002/eureka/。
+
+## 总结
+通过主动以及自动同步的方式将Eureka Client注册到服务注册中心集群环境中，为了保证完整性，还是建议手动进行配置，自动同步也
+有不成功的情况存在。
