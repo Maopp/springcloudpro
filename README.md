@@ -58,7 +58,8 @@ add readme
           defaultZone: http://localhost:10000/eureka/
 
 ## 在服务注册的过程中，SpringCloud Eureka为每一个服务节点都提供默认且唯一的实例编号(InstanceId)
-    实例编号默认值：${spring.cloud.client.ipAddress}:${spring.application.name}:${spring.application.instance_id:${server.port}}
+    实例编号默认值：
+    ${spring.cloud.client.ipAddress}:${spring.application.name}:${spring.application.instance_id:${server.port}}
          10.200.78.75:catpp-spring-cloud-eureka-provider:8087
 
 ## 自定义InstanceId：
@@ -144,8 +145,9 @@ add readme
 ## 第二步：InetUtils#findFirstNonLoopbackHostInfo获取主机基本信息：
 
     在构造函数EurekaInstanceConfigBean(InetUtils inetUtils)源码实现内hostInfo主机信息通过了
-    InetUtils#findFirstNonLoopbackHostInfo方法来进行实例化，我们来看看这个方法的具体实现逻辑，它会自动读取系统网卡列表然再进
-    行循环遍历查询正在UP状态的网卡信息，如果没有查询到网卡信息，则使用默认的HostName、IpAddress配置信息，源码如下所示：
+    InetUtils#findFirstNonLoopbackHostInfo方法来进行实例化，我们来看看这个方法的具体实现逻辑，它会自动读取系统网卡列表然
+    再进行循环遍历查询正在UP状态的网卡信息，如果没有查询到网卡信息，则使用默认的HostName、IpAddress配置信息，源码如下所
+    示：
         public HostInfo findFirstNonLoopbackHostInfo() {
             InetAddress address = findFirstNonLoopbackAddress();
             if (address != null) {
@@ -242,19 +244,20 @@ add readme
         }
 
 ## 默认注册方式源码分析
-    由于在实例化EurekaInstanceConfigBean配置实体类时，构造函数进行了获取第一个非回环主机信息，默认的hostName以及ipAddress参
-    数则是会直接使用InetUtils#findFirstNonLoopbackHostInfo方法返回的相对应的值。
+    由于在实例化EurekaInstanceConfigBean配置实体类时，构造函数进行了获取第一个非回环主机信息，默认的hostName以及
+    ipAddress参数则是会直接使用InetUtils#findFirstNonLoopbackHostInfo方法返回的相对应的值。
 
 ## IP优先注册方式源码分析
-    EurekaInstanceConfigBean#getHostName方法直接调用本类重载方法getHostName(boolean refresh)并且传递参数为false，根据第三步
-    源码我们就可以看到：
+    EurekaInstanceConfigBean#getHostName方法直接调用本类重载方法getHostName(boolean refresh)并且传递参数为false，根据第
+    三步源码我们就可以看到：
         return this.preferIpAddress ? this.ipAddress : this.hostname;
-    如果eureka.instance.prefer-ip-address参数设置了true就会返回eureka.instance.ip-address的值，这样我们就可以从中明白为什么
-    主动设置eureka.instance.ip-address参数后需要同时设置eureka.instance.prefer-ip-address参数才可以生效。
+    如果eureka.instance.prefer-ip-address参数设置了true就会返回eureka.instance.ip-address的值，这样我们就可以从中明白为
+    什么主动设置eureka.instance.ip-address参数后需要同时设置eureka.instance.prefer-ip-address参数才可以生效。
 
 ## 指定IP、HostName源码分析
-    我们通过application.yml配置文件进行设置eureka.instance.hostname以及eureka.instance.ip-address后会直接替换原默认值，在
-    EurekaInstanceConfigBean#getHostName中也是返回的this.hostname、this.ipAddress所以在这里设置后会直接生效作为返回的配置值。
+    我们通过application.yml配置文件进行设置eureka.instance.hostname以及eureka.instance.ip-address后会直接替换原默认值，
+    在EurekaInstanceConfigBean#getHostName中也是返回的this.hostname、this.ipAddress所以在这里设置后会直接生效作为返回的
+    配置值。
 
 ## 总结：
     通过源码进行分析服务注册方式执行流程，这样在以后进行配置eureka.instance.hostname、eureka.instance.prefer.ip-address、
@@ -442,7 +445,9 @@ Windows配置方式
 
 ## Eureka Server相互注册
 application-node1.yml
-eureka.client.service-url.defaultZone这个配置参数的值，配置的是http://node2:10002/eureka/，那这里的node2是什么呢？其实一看应该可以明白，这是们在hosts文件内配置的hostname，而端口号我们配置的则是10002，根据hostname以及port我们可以看出，环境node1注册到了node2上。
+eureka.client.service-url.defaultZone这个配置参数的值，配置的是http://node2:10002/eureka/，那这里的node2是什么呢？其实一
+看应该可以明白，这是们在hosts文件内配置的hostname，而端口号我们配置的则是10002，根据hostname以及port我们可以看出，环境
+node1注册到了node2上。
 
 application-node2.yml
 在node2环境内配置eureka.client.service-url.defaultZone是指向的http://node1:10001/eureka/，同样node2注册到了node1上。
@@ -503,3 +508,43 @@ ureka.clinet.service-url.defaultZone参数，通过“，”隔开配置了两�
 ## 总结
 通过主动以及自动同步的方式将Eureka Client注册到服务注册中心集群环境中，为了保证完整性，还是建议手动进行配置，自动同步也
 有不成功的情况存在。
+
+
+------------------------------------------------------------------------------------------------------------------------
+# Eureka服务注册中心的失效剔除与自我保护机制：
+Eureka作为一个成熟的服务注册中心当然也有合理的内部维护服务节点的机制，比如服务下线、失效剔除、自我保护，也正是因为内部有
+这种维护机制才让Eureka更健壮、更稳定。
+
+学习目标：了解Eureka是怎么保证服务相对较短时长内的有效性。
+
+## 服务下线
+迭代更新、终止访问某一个或者多个服务节点时，我们在正常关闭服务节点的情况下，Eureka Client会通过PUT请求方式调用
+Eureka Server的REST访问节点/eureka/apps/{appID}/{instanceID}/status?value=DOWN请求地址，告知Eureka Server我要下线了，
+Eureka Server收到请求后会将该服务实例的运行状态由UP修改为DOWN，这样我们在管理平台服务列表内看到的就是DOWN状态的服务实例。
+
+## 失效剔除
+Eureka Server在启动完成后会创建一个定时器每隔60秒检查一次服务健康状况，如果其中一个服务节点超过90秒未检查到心跳，那么
+Eureka Server会自动从服务实例列表内将该服务剔除。
+由于非正常关闭不会执行主动下线动作，所以才会出现失效剔除机制，该机制主要是应对非正常关闭服务的情况，如：内存溢出、杀死进
+程、服务器宕机等非正常流程关闭服务节点时。
+
+## 自我保护
+Eureka Server的自我保护机制会检查最近15分钟内所有Eureka Client正常心跳的占比，如果低于85%就会被触发。
+我们如果在Eureka Server的管理界面发现如下的红色内容，就说明已经触发了自我保护机制。
+    EMERGENCY! EUREKA MAY BE INCORRECTLY CLAIMING INSTANCES ARE UP WHEN THEY'RE NOT. RENEWALS ARE LESSER THAN THRESHOLD
+    AND HENCE THE INSTANCES ARE NOT BEING EXPIRED JUST TO BE SAFE.
+
+当触发自我保护机制后Eureka Server就会锁定服务列表，不让服务列表内的服务过期，不过这样我们在访问服务时，得到的服务很有可
+能是已经失效的实例，如果是这样我们就会无法访问到期望的资源，会导致服务调用失败，所以这时我们就需要有对应的“容错机制”、
+“熔断机制”
+
+我们的服务如果是采用的公网IP地址，出现自我保护机制的几率就会大大增加，所以这时更要我们部署多个相同InstanId的服务或者建立
+一套完整的熔断机制解决方案
+
+## 自我保护开关
+如果在本地测试环境，建议关掉自我保护机制，这样方便我们进行测试，也更准确的保证了服务实例的有效性！！！
+关闭自我保护只需要修改application.yml配置文件内参数eureka.server.enable-self-preservation将值设置为false即可。
+
+## 总结
+了解到了Eureka Server对服务的治理，其中包含“服务下线”、“失效剔除”、“自我保护”等，对自我保护机制一定要谨慎的处理，
+防止出现服务失效问题。
